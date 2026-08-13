@@ -1342,6 +1342,20 @@ static void CompleteWhenChoseItem(void)
     }
 }
 
+bool8 IsPlayerAwaitingBattleChoice(void)
+{
+    s32 i;
+
+    for (i = 0; i < MAX_BATTLERS_COUNT; i++)
+    {
+        if (gBattlerControllerFuncs[i] == HandleInputChooseTarget
+         || gBattlerControllerFuncs[i] == WaitForMonSelection
+         || gBattlerControllerFuncs[i] == CompleteWhenChoseItem)
+            return TRUE;
+    }
+    return FALSE;
+}
+
 static void CompleteOnSpecialAnimDone(void)
 {
     if (!gDoingBattleAnim || !gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].specialAnimActive)

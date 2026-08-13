@@ -271,6 +271,11 @@ static void Task_ShopMenu(u8 taskId)
     }
 }
 
+bool8 IsShopMenuActive(void)
+{
+    return FuncIsActiveTask(Task_ShopMenu);
+}
+
 static void Task_HandleShopMenuBuy(u8 taskId)
 {
     SetWordTaskArg(taskId, 0xE, (u32)CB2_InitBuyMenu);

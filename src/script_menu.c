@@ -1339,3 +1339,10 @@ u16 GetSelectedSeagallopDestination(void)
     }
     return SEAGALLOP_VERMILION_CITY;
 }
+
+bool8 IsScriptMenuWaitingForChoice(void)
+{
+    return FuncIsActiveTask(Task_MultichoiceMenu_HandleInput)
+        || FuncIsActiveTask(Task_YesNoMenu_HandleInput)
+        || FuncIsActiveTask(Hask_MultichoiceGridMenu_HandleInput);
+}

@@ -265,6 +265,7 @@ void SetBattleEndCallbacks(void);
 void MoveSelectionCreateCursorAt(u8 cursorPos, u8 arg1);
 void MoveSelectionDestroyCursorAt(u8 cursorPos);
 void HandleInputChooseMove(void);
+bool8 IsPlayerAwaitingBattleChoice(void);
 
 // opponent controller
 void SetControllerToOpponent(void);

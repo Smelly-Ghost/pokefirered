@@ -939,6 +939,11 @@ extern const u8 gText_Option[];
 extern const u8 gText_FrameType[];
 extern const u8 gTextJP_Type[];
 extern const u8 gText_PickSwitchCancel[];
+extern const u8 gText_TurboA[];
+extern const u8 gText_TurboButton[];
+extern const u8 gText_TurboButtonA[];
+extern const u8 gText_TurboButtonL[];
+extern const u8 gText_TurboButtonR[];
 
 // evolution_scene
 extern const u8 gText_PkmnIsEvolving[];

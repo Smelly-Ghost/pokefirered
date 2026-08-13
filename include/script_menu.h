@@ -16,5 +16,6 @@ void ScriptMenu_DisplayPCStartupPrompt(void);
 bool8 (*ScriptMenu_HidePokemonPic(void))(void);
 void QL_DestroyAbortedDisplay(void);
 void PicboxCancel(void);
+bool8 IsScriptMenuWaitingForChoice(void);
 
 #endif //GUARD_SCRIPT_MENU_H

@@ -312,6 +312,12 @@ bool8 ScriptContext_IsEnabled(void)
         return FALSE;
 }
 
+// True only while stopped for a native task tree (e.g. the PC), not while idle or running.
+bool8 ScriptContext_IsWaiting(void)
+{
+    return (sGlobalScriptContextStatus == CONTEXT_WAITING);
+}
+
 // Re-initializes the global script context to zero.
 void ScriptContext_Init(void)
 {

@@ -10,6 +10,10 @@
 #include "strings.h"
 #include "field_fadetransition.h"
 #include "gba/m4a_internal.h"
+#include "list_menu.h"
+#include "menu_indicators.h"
+
+#define TAG_SCROLL_ARROW 5500
 
 // can't include the one in menu_helpers.h since Task_OptionMenu needs bool32 for matching
 bool32 IsActiveOverworldLinkBusy(void);
@@ -23,9 +27,13 @@ enum
     MENUITEM_SOUND,
     MENUITEM_BUTTONMODE,
     MENUITEM_FRAMETYPE,
+    MENUITEM_TURBOA,
+    MENUITEM_TURBOBUTTON,
     MENUITEM_CANCEL,
     MENUITEM_COUNT
 };
+
+#define MAX_VISIBLE_MENU_ITEMS 7
 
 // Window Ids
 enum
@@ -42,6 +50,8 @@ struct OptionMenu
     /*0x10*/ u8 loadState;
     /*0x11*/ u8 state;
     /*0x12*/ u8 loadPaletteState;
+    /*0x14*/ u16 scrollOffset;
+    /*0x16*/ u8 scrollIndicatorArrowPairId;
 };
 
 static EWRAM_DATA struct OptionMenu *sOptionMenuPtr = NULL;
@@ -65,6 +75,8 @@ static void PrintOptionMenuHeader(void);
 static void DrawOptionMenuBg(void);
 static void LoadOptionMenuItemNames(void);
 static void UpdateSettingSelectionDisplay(u16 selection);
+static bool8 UpdateOptionMenuScroll(void);
+static void RedrawVisibleOptionMenuItems(void);
 
 // Data Definitions
 static const struct WindowTemplate sOptionMenuWinTemplates[] =
@@ -131,17 +143,19 @@ static const struct BgTemplate sOptionMenuBgTemplates[] =
 };
 
 static const u16 sOptionMenuPalette[] = INCBIN_U16("graphics/misc/option_menu.gbapal");
-static const u16 sOptionMenuItemCounts[MENUITEM_COUNT] = {3, 2, 2, 2, 3, 10, 0};
+static const u16 sOptionMenuItemCounts[MENUITEM_COUNT] = {3, 2, 2, 2, 3, 10, 2, 3, 0};
 
 static const u8 *const sOptionMenuItemsNames[MENUITEM_COUNT] =
 {
-    [MENUITEM_TEXTSPEED]   = gText_TextSpeed,
-    [MENUITEM_BATTLESCENE] = gText_BattleScene,
-    [MENUITEM_BATTLESTYLE] = gText_BattleStyle,
-    [MENUITEM_SOUND]       = gText_Sound,
-    [MENUITEM_BUTTONMODE]  = gText_ButtonMode,
-    [MENUITEM_FRAMETYPE]   = gText_Frame,
-    [MENUITEM_CANCEL]      = gText_OptionMenuCancel,
+    [MENUITEM_TEXTSPEED]    = gText_TextSpeed,
+    [MENUITEM_BATTLESCENE]  = gText_BattleScene,
+    [MENUITEM_BATTLESTYLE]  = gText_BattleStyle,
+    [MENUITEM_SOUND]        = gText_Sound,
+    [MENUITEM_BUTTONMODE]   = gText_ButtonMode,
+    [MENUITEM_FRAMETYPE]    = gText_Frame,
+    [MENUITEM_TURBOA]       = gText_TurboA,
+    [MENUITEM_TURBOBUTTON]  = gText_TurboButton,
+    [MENUITEM_CANCEL]       = gText_OptionMenuCancel,
 };
 
 static const u8 *const sTextSpeedOptions[] =
@@ -176,6 +190,19 @@ static const u8 *const sButtonTypeOptions[] =
 	gText_ButtonTypeLEqualsA
 };
 
+static const u8 *const sTurboAOptions[] =
+{
+    gText_BattleSceneOff,
+    gText_BattleSceneOn
+};
+
+static const u8 *const sTurboButtonOptions[] =
+{
+    gText_TurboButtonA,
+    gText_TurboButtonL,
+    gText_TurboButtonR
+};
+
 static const u8 sOptionMenuPickSwitchCancelTextColor[] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_COLOR_DARK_GRAY};
 static const u8 sOptionMenuTextColor[] = {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_LIGHT_RED, TEXT_COLOR_RED};
 
@@ -206,13 +233,17 @@ void CB2_OptionsMenuFromStartMenu(void)
     sOptionMenuPtr->loadPaletteState = 0;
     sOptionMenuPtr->state = 0;
     sOptionMenuPtr->cursorPos = 0;
+    sOptionMenuPtr->scrollOffset = 0;
+    sOptionMenuPtr->scrollIndicatorArrowPairId = 0xFF;
     sOptionMenuPtr->option[MENUITEM_TEXTSPEED] = gSaveBlock2Ptr->optionsTextSpeed;
     sOptionMenuPtr->option[MENUITEM_BATTLESCENE] = gSaveBlock2Ptr->optionsBattleSceneOff;
     sOptionMenuPtr->option[MENUITEM_BATTLESTYLE] = gSaveBlock2Ptr->optionsBattleStyle;
     sOptionMenuPtr->option[MENUITEM_SOUND] = gSaveBlock2Ptr->optionsSound;
     sOptionMenuPtr->option[MENUITEM_BUTTONMODE] = gSaveBlock2Ptr->optionsButtonMode;
     sOptionMenuPtr->option[MENUITEM_FRAMETYPE] = gSaveBlock2Ptr->optionsWindowFrameType;
-    
+    sOptionMenuPtr->option[MENUITEM_TURBOA] = gSaveBlock2Ptr->optionsTurboA;
+    sOptionMenuPtr->option[MENUITEM_TURBOBUTTON] = gSaveBlock2Ptr->optionsTurboButton;
+
     for (i = 0; i < MENUITEM_COUNT - 1; i++)
     {
         if (sOptionMenuPtr->option[i] > (sOptionMenuItemCounts[i]) - 1)
@@ -262,8 +293,8 @@ static void CB2_OptionMenu(void)
         LoadOptionMenuItemNames();
         break;
     case 7:
-        for (i = 0; i < MENUITEM_COUNT; i++)
-            BufferOptionMenuString(i);
+        for (i = 0; i < MAX_VISIBLE_MENU_ITEMS && i < MENUITEM_COUNT; i++)
+            BufferOptionMenuString(sOptionMenuPtr->scrollOffset + i);
         break;
     case 8:
         UpdateSettingSelectionDisplay(sOptionMenuPtr->cursorPos);
@@ -282,6 +313,9 @@ static void SetOptionMenuTask(void)
 {
     CreateTask(Task_OptionMenu, 0);
     SetMainCallback2(CB2_InitOptionMenu);
+    sOptionMenuPtr->scrollIndicatorArrowPairId = AddScrollIndicatorArrowPairParameterized(
+        SCROLL_ARROW_UP, 220, 60, 148, MENUITEM_COUNT - MAX_VISIBLE_MENU_ITEMS,
+        TAG_SCROLL_ARROW, TAG_SCROLL_ARROW, &sOptionMenuPtr->scrollOffset);
 }
 
 static void InitOptionMenuBg(void)
@@ -305,8 +339,8 @@ static void InitOptionMenuBg(void)
     DeactivateAllTextPrinters();
     SetGpuReg(REG_OFFSET_BLDCNT, BLDCNT_TGT1_BG0 | BLDCNT_EFFECT_BLEND | BLDCNT_EFFECT_LIGHTEN);
     SetGpuReg(REG_OFFSET_BLDY, BLDCNT_TGT1_BG1);
-    SetGpuReg(REG_OFFSET_WININ, WININ_WIN0_BG0);
-    SetGpuReg(REG_OFFSET_WINOUT, WINOUT_WIN01_BG0 | WINOUT_WIN01_BG1 | WINOUT_WIN01_BG2 | WINOUT_WIN01_CLR);
+    SetGpuReg(REG_OFFSET_WININ, WININ_WIN0_BG0 | WININ_WIN0_OBJ);
+    SetGpuReg(REG_OFFSET_WINOUT, WINOUT_WIN01_BG0 | WINOUT_WIN01_BG1 | WINOUT_WIN01_BG2 | WINOUT_WIN01_OBJ | WINOUT_WIN01_CLR);
     SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_OBJ_1D_MAP | DISPCNT_OBJ_ON | DISPCNT_WIN0_ON);
     ShowBg(0);
     ShowBg(1);
@@ -391,6 +425,10 @@ static void Task_OptionMenu(u8 taskId)
         case 4:
             BufferOptionMenuString(sOptionMenuPtr->cursorPos);
             break;
+        case 5:
+            RedrawVisibleOptionMenuItems();
+            UpdateSettingSelectionDisplay(sOptionMenuPtr->cursorPos);
+            break;
         }
         break;
     case 3:
@@ -408,8 +446,20 @@ static void Task_OptionMenu(u8 taskId)
     }
 }
 
+static bool8 UpdateOptionMenuScroll(void)
+{
+    u16 oldScrollOffset = sOptionMenuPtr->scrollOffset;
+
+    if (sOptionMenuPtr->cursorPos < sOptionMenuPtr->scrollOffset)
+        sOptionMenuPtr->scrollOffset = sOptionMenuPtr->cursorPos;
+    else if (sOptionMenuPtr->cursorPos > sOptionMenuPtr->scrollOffset + MAX_VISIBLE_MENU_ITEMS - 1)
+        sOptionMenuPtr->scrollOffset = sOptionMenuPtr->cursorPos - MAX_VISIBLE_MENU_ITEMS + 1;
+
+    return (sOptionMenuPtr->scrollOffset != oldScrollOffset);
+}
+
 static u8 OptionMenu_ProcessInput(void)
-{ 
+{
     u16 current;
     u16 *curr;
     if (JOY_REPT(DPAD_RIGHT))
@@ -443,7 +493,9 @@ static u8 OptionMenu_ProcessInput(void)
             sOptionMenuPtr->cursorPos = MENUITEM_CANCEL;
         else
             sOptionMenuPtr->cursorPos = sOptionMenuPtr->cursorPos - 1;
-        return 3;        
+        if (UpdateOptionMenuScroll())
+            return 5;
+        return 3;
     }
     else if (JOY_REPT(DPAD_DOWN))
     {
@@ -451,6 +503,8 @@ static u8 OptionMenu_ProcessInput(void)
             sOptionMenuPtr->cursorPos = MENUITEM_TEXTSPEED;
         else
             sOptionMenuPtr->cursorPos = sOptionMenuPtr->cursorPos + 1;
+        if (UpdateOptionMenuScroll())
+            return 5;
         return 3;
     }
     else if (JOY_NEW(B_BUTTON) || JOY_NEW(A_BUTTON))
@@ -468,11 +522,12 @@ static void BufferOptionMenuString(u8 selection)
     u8 str[20];
     u8 buf[12];
     u8 dst[3];
-    u8 x, y;
-    
+    u8 x, y, row;
+
     memcpy(dst, sOptionMenuTextColor, 3);
     x = 0x82;
-    y = ((GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT) - 1) * selection) + 2;
+    row = selection - sOptionMenuPtr->scrollOffset;
+    y = ((GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT) - 1) * row) + 2;
     FillWindowPixelRect(1, 1, x, y, 0x46, GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT));
 
     switch (selection)
@@ -498,6 +553,12 @@ static void BufferOptionMenuString(u8 selection)
         StringAppendN(str, buf, 3);
         AddTextPrinterParameterized3(1, FONT_NORMAL, x, y, dst, -1, str);
         break;
+    case MENUITEM_TURBOA:
+        AddTextPrinterParameterized3(1, FONT_NORMAL, x, y, dst, -1, sTurboAOptions[sOptionMenuPtr->option[selection]]);
+        break;
+    case MENUITEM_TURBOBUTTON:
+        AddTextPrinterParameterized3(1, FONT_NORMAL, x, y, dst, -1, sTurboButtonOptions[sOptionMenuPtr->option[selection]]);
+        break;
     default:
         break;
     }
@@ -505,17 +566,33 @@ static void BufferOptionMenuString(u8 selection)
     CopyWindowToVram(1, COPYWIN_FULL);
 }
 
+static void RedrawVisibleOptionMenuItems(void)
+{
+    u8 i, count;
+
+    LoadOptionMenuItemNames();
+    count = MENUITEM_COUNT - sOptionMenuPtr->scrollOffset;
+    if (count > MAX_VISIBLE_MENU_ITEMS)
+        count = MAX_VISIBLE_MENU_ITEMS;
+    for (i = 0; i < count; i++)
+        BufferOptionMenuString(sOptionMenuPtr->scrollOffset + i);
+}
+
 static void CloseAndSaveOptionMenu(u8 taskId)
 {
     gFieldCallback = FieldCB_DefaultWarpExit;
     SetMainCallback2(gMain.savedCallback);
     FreeAllWindowBuffers();
+    if (sOptionMenuPtr->scrollIndicatorArrowPairId != 0xFF)
+        RemoveScrollIndicatorArrowPair(sOptionMenuPtr->scrollIndicatorArrowPairId);
     gSaveBlock2Ptr->optionsTextSpeed = sOptionMenuPtr->option[MENUITEM_TEXTSPEED];
     gSaveBlock2Ptr->optionsBattleSceneOff = sOptionMenuPtr->option[MENUITEM_BATTLESCENE];
     gSaveBlock2Ptr->optionsBattleStyle = sOptionMenuPtr->option[MENUITEM_BATTLESTYLE];
     gSaveBlock2Ptr->optionsSound = sOptionMenuPtr->option[MENUITEM_SOUND];
     gSaveBlock2Ptr->optionsButtonMode = sOptionMenuPtr->option[MENUITEM_BUTTONMODE];
     gSaveBlock2Ptr->optionsWindowFrameType = sOptionMenuPtr->option[MENUITEM_FRAMETYPE];
+    gSaveBlock2Ptr->optionsTurboA = sOptionMenuPtr->option[MENUITEM_TURBOA];
+    gSaveBlock2Ptr->optionsTurboButton = sOptionMenuPtr->option[MENUITEM_TURBOBUTTON];
     SetPokemonCryStereo(gSaveBlock2Ptr->optionsSound);
     FREE_AND_SET_NULL(sOptionMenuPtr);
     DestroyTask(taskId);
@@ -555,21 +632,25 @@ static void DrawOptionMenuBg(void)
 
 static void LoadOptionMenuItemNames(void)
 {
-    u8 i;
-    
+    u8 i, count;
+
     FillWindowPixelBuffer(1, PIXEL_FILL(1));
-    for (i = 0; i < MENUITEM_COUNT; i++)
+    count = MENUITEM_COUNT - sOptionMenuPtr->scrollOffset;
+    if (count > MAX_VISIBLE_MENU_ITEMS)
+        count = MAX_VISIBLE_MENU_ITEMS;
+    for (i = 0; i < count; i++)
     {
-        AddTextPrinterParameterized(WIN_OPTIONS, FONT_NORMAL, sOptionMenuItemsNames[i], 8, (u8)((i * (GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT))) + 2) - i, TEXT_SKIP_DRAW, NULL);    
+        AddTextPrinterParameterized(WIN_OPTIONS, FONT_NORMAL, sOptionMenuItemsNames[sOptionMenuPtr->scrollOffset + i], 8, (u8)((i * (GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT))) + 2) - i, TEXT_SKIP_DRAW, NULL);
     }
 }
 
 static void UpdateSettingSelectionDisplay(u16 selection)
 {
-    u16 maxLetterHeight, y;
-    
+    u16 maxLetterHeight, y, row;
+
     maxLetterHeight = GetFontAttribute(FONT_NORMAL, FONTATTR_MAX_LETTER_HEIGHT);
-    y = selection * (maxLetterHeight - 1) + 0x3A;
+    row = selection - sOptionMenuPtr->scrollOffset;
+    y = row * (maxLetterHeight - 1) + 0x3A;
     SetGpuReg(REG_OFFSET_WIN0V, WIN_RANGE(y, y + maxLetterHeight));
     SetGpuReg(REG_OFFSET_WIN0H, WIN_RANGE(0x10, 0xE0));
 }

@@ -16,6 +16,11 @@
 #include "save_failed_screen.h"
 #include "quest_log.h"
 #include "sloopsvc.h"
+#include "script_menu.h"
+#include "menu_helpers.h"
+#include "shop.h"
+#include "start_menu.h"
+#include "script.h"
 
 extern u32 intr_main[];
 
@@ -331,6 +336,38 @@ static void ReadKeys(void)
 
         if (JOY_HELD(L_BUTTON))
             gMain.heldKeys |= A_BUTTON;
+    }
+
+    // Turbo A: auto-repeat an A press while the configured button is held,
+    // suppressed during menus/prompts where an accidental confirm would be dangerous.
+    if (gSaveBlock2Ptr->optionsTurboA)
+    {
+        u16 turboButton = A_BUTTON;
+
+        if (gSaveBlock2Ptr->optionsTurboButton == OPTIONS_TURBO_BUTTON_L)
+            turboButton = L_BUTTON;
+        else if (gSaveBlock2Ptr->optionsTurboButton == OPTIONS_TURBO_BUTTON_R)
+            turboButton = R_BUTTON;
+
+        if (JOY_HELD(turboButton) && gMain.callback2 == CB2_Overworld
+         && !ScriptContext_IsWaiting()
+         && !FuncIsActiveTask(Task_StartMenuHandleInput)
+         && !IsScriptMenuWaitingForChoice()
+         && !IsYesNoMenuActive()
+         && !IsShopMenuActive())
+        {
+            if (gMain.vblankCounter2 % 8 == 0)
+                gMain.newKeys |= A_BUTTON;
+            else
+                gMain.newKeys &= ~A_BUTTON;
+        }
+        else if (JOY_HELD(turboButton) && gMain.inBattle && !IsPlayerAwaitingBattleChoice())
+        {
+            if (gMain.vblankCounter2 % 16 == 0)
+                gMain.newKeys |= A_BUTTON;
+            else
+                gMain.newKeys &= ~A_BUTTON;
+        }
     }
 
     if (JOY_NEW(gMain.watchedKeysMask))

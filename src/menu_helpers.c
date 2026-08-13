@@ -67,6 +67,11 @@ void CreateYesNoMenuWithCallbacks(u8 taskId, const struct WindowTemplate *templa
     gTasks[taskId].func = Task_CallYesOrNoCallback;
 }
 
+bool8 IsYesNoMenuActive(void)
+{
+    return FuncIsActiveTask(Task_CallYesOrNoCallback);
+}
+
 u8 GetLRKeysPressed(void)
 {
     if (gSaveBlock2Ptr->optionsButtonMode == OPTIONS_BUTTON_MODE_LR)

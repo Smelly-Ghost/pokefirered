@@ -341,6 +341,8 @@ struct SaveBlock2
               u16 optionsBattleStyle:1; // OPTIONS_BATTLE_STYLE_[SHIFT/SET]
               u16 optionsBattleSceneOff:1; // whether battle animations are disabled
               u16 regionMapZoom:1; // whether the map is zoomed in
+              u16 optionsTurboA:1; // whether Turbo A is enabled
+              u16 optionsTurboButton:2; // OPTIONS_TURBO_BUTTON_[A/L/R]
     /*0x018*/ struct Pokedex pokedex;
     /*0x090*/ u8 filler_90[0x8];
     /*0x098*/ struct Time localTimeOffset;
