@@ -450,6 +450,8 @@ static void (*const sPlayerNotOnBikeFuncs[])(u8, u16) = {
 
 void MovePlayerNotOnBike(u8 direction, u16 heldKeys)
 {
+    if (JOY_NEW(B_BUTTON) && FlagGet(FLAG_SYS_B_DASH))
+        gSaveBlock2Ptr->autoRunOn = !gSaveBlock2Ptr->autoRunOn;
     sPlayerNotOnBikeFuncs[CheckMovementInputNotOnBike(direction)](direction, heldKeys);
 }
 
@@ -513,7 +515,7 @@ static void PlayerNotOnBikeMoving(u8 direction, u16 heldKeys)
         return;
     }
 
-    if ((heldKeys & B_BUTTON) && FlagGet(FLAG_SYS_B_DASH)
+    if (((heldKeys & B_BUTTON) || gSaveBlock2Ptr->autoRunOn) && FlagGet(FLAG_SYS_B_DASH)
         && !IsRunningDisallowed(gObjectEvents[gPlayerAvatar.objectEventId].currentMetatileBehavior))
     {
         if (PlayerIsMovingOnRockStairs(direction))
