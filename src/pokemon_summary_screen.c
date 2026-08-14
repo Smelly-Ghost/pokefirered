@@ -2552,14 +2552,46 @@ static void PrintInfoPage(void)
     }
 }
 
+static const u8 sSkillsStatToNatureStat[] = {[PSS_STAT_ATK] = STAT_ATK, [PSS_STAT_DEF] = STAT_DEF, [PSS_STAT_SPA] = STAT_SPATK, [PSS_STAT_SPD] = STAT_SPDEF, [PSS_STAT_SPE] = STAT_SPEED};
+
+// POKESUM_WIN_RIGHT_PANE's text palette is graphics/interface/pokemon_types.gbapal
+// (shared with the type-icon graphics, see ListMenuLoadStdPalAt(BG_PLTT_ID(6), 1)
+// in PokeSum_HandleLoadBgGfx), not the usual system text-color palette, so these
+// indices are picked directly from that file's actual RGB values rather than the
+// TEXT_COLOR_* constants: index 7 (106,148,246) is blue, index 13 (82,123,139) a
+// darker same-family blue for the shadow; index 12 (255,90,139) is a lighter red,
+// index 1 (238,49,0) a darker same-family red for its shadow.
+static const u8 sSkillsStatBoostedColor[] = {TEXT_COLOR_TRANSPARENT, 7, 13};
+static const u8 sSkillsStatLoweredColor[] = {TEXT_COLOR_TRANSPARENT, 12, 1};
+
+// Base stats are the only mode where the printed number is actually nature-affected;
+// IVs/EVs are raw values nature has no bearing on, so they stay uncolored.
+static const u8 *GetSkillsStatColor(u8 pssStat)
+{
+    u8 nature;
+    s8 mod;
+
+    if (sMonSummaryScreen->skillsStatMode != PSS_SKILLS_MODE_STATS)
+        return sLevelNickTextColors[0];
+
+    nature = GetNature(&sMonSummaryScreen->currentMon);
+    mod = gNatureStatTable[nature][sSkillsStatToNatureStat[pssStat] - 1];
+    if (mod > 0)
+        return sSkillsStatBoostedColor;
+    else if (mod < 0)
+        return sSkillsStatLoweredColor;
+    else
+        return sLevelNickTextColors[0];
+}
+
 static void PrintSkillsPage(void)
 {
     AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 14 + sMonSkillsPrinterXpos->curHpStr, 4, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.curHpStrBuf);
-    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->atkStr, 22, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_ATK]);
-    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->defStr, 35, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_DEF]);
-    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->spAStr, 48, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_SPA]);
-    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->spDStr, 61, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_SPD]);
-    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->speStr, 74, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_SPE]);
+    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->atkStr, 22, GetSkillsStatColor(PSS_STAT_ATK), TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_ATK]);
+    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->defStr, 35, GetSkillsStatColor(PSS_STAT_DEF), TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_DEF]);
+    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->spAStr, 48, GetSkillsStatColor(PSS_STAT_SPA), TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_SPA]);
+    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->spDStr, 61, GetSkillsStatColor(PSS_STAT_SPD), TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_SPD]);
+    AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 50 + sMonSkillsPrinterXpos->speStr, 74, GetSkillsStatColor(PSS_STAT_SPE), TEXT_SKIP_DRAW, sMonSummaryScreen->summary.statValueStrBufs[PSS_STAT_SPE]);
     AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 15 + sMonSkillsPrinterXpos->expStr, 87, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.expPointsStrBuf);
     AddTextPrinterParameterized3(sMonSummaryScreen->windowIds[POKESUM_WIN_RIGHT_PANE], FONT_NORMAL, 15 + sMonSkillsPrinterXpos->toNextLevel, 100, sLevelNickTextColors[0], TEXT_SKIP_DRAW, sMonSummaryScreen->summary.expToNextLevelStrBuf);
 }
