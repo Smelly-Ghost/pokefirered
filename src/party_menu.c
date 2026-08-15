@@ -249,6 +249,7 @@ static void Task_CancelChooseMonYesNo(u8 taskId);
 static void Task_HandleCancelChooseMonYesNoInput(u8 taskId);
 static void PartyMenuDisplayYesNoMenu(void);
 static void Task_ReturnToChooseMonAfterText(u8 taskId);
+static void Task_ReturnToChooseMonAfterUsingItem(u8 taskId);
 static void UpdateCurrentPartySelection(s8 *slotPtr, s8 movementDir);
 static void UpdatePartySelectionSingleLayout(s8 *slotPtr, s8 movementDir);
 static void UpdatePartySelectionDoubleLayout(s8 *slotPtr, s8 movementDir);
@@ -341,6 +342,7 @@ static void UpdateMonDisplayInfoAfterRareCandy(u8 slot, struct Pokemon *mon);
 static void DisplayLevelUpStatsPg1(u8 taskId);
 static void DisplayLevelUpStatsPg2(u8 taskId);
 static void Task_TryLearnNewMoves(u8 taskId);
+static void CB2_ReturnToPartyMenuUsingRareCandy(void);
 static void PartyMenuTryEvolution(u8 taskId);
 static void DisplayMonNeedsToReplaceMove(u8 taskId);
 static void DisplayMonLearnedMove(u8 taskId, u16 move);
@@ -1568,6 +1570,27 @@ static void Task_ReturnToChooseMonAfterText(u8 taskId)
         else
         {
             DisplayPartyMenuStdMessage(PARTY_MSG_CHOOSE_MON);
+            gTasks[taskId].func = Task_HandleChooseMonInput;
+        }
+    }
+}
+
+// Same as Task_ReturnToChooseMonAfterText, but keeps the "USE ON WHICH POKEMON?"
+// prompt instead of falling back to the generic "CHOOSE A POKEMON" one, for
+// looping back into another item use rather than a plain party menu action.
+static void Task_ReturnToChooseMonAfterUsingItem(u8 taskId)
+{
+    if (IsPartyMenuTextPrinterActive() != TRUE)
+    {
+        ClearStdWindowAndFrameToTransparent(6, FALSE);
+        ClearWindowTilemap(6);
+        if (MenuHelpers_IsLinkActive() == TRUE)
+        {
+            gTasks[taskId].func = Task_WaitForLinkAndReturnToChooseMon;
+        }
+        else
+        {
+            DisplayPartyMenuStdMessage(PARTY_MSG_USE_ON_WHICH_MON);
             gTasks[taskId].func = Task_HandleChooseMonInput;
         }
     }
@@ -4490,7 +4513,14 @@ void ItemUseCB_MedicineStep(u8 taskId, TaskFunc func)
         PlaySE(SE_SELECT);
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        gTasks[taskId].func = func;
+        if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
+        {
+            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+            gItemUseCB = ItemUseCB_Medicine;
+            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+        }
+        else
+            gTasks[taskId].func = func;
     }
     else
     {
@@ -4520,7 +4550,14 @@ void ItemUseCB_MedicineStep(u8 taskId, TaskFunc func)
             GetMedicineItemEffectMessage(item);
             DisplayPartyMenuMessage(gStringVar4, TRUE);
             ScheduleBgCopyTilemapToVram(2);
-            gTasks[taskId].func = func;
+            if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(item, 1))
+            {
+                gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+                gItemUseCB = ItemUseCB_Medicine;
+                gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+            }
+            else
+                gTasks[taskId].func = func;
         }
     }
 }
@@ -4532,7 +4569,14 @@ static void Task_DisplayHPRestoredMessage(u8 taskId)
     DisplayPartyMenuMessage(gStringVar4, FALSE);
     ScheduleBgCopyTilemapToVram(2);
     HandleBattleLowHpMusicChange();
-    gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+    if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
+    {
+        gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+        gItemUseCB = ItemUseCB_Medicine;
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+    }
+    else
+        gTasks[taskId].func = Task_ClosePartyMenuAfterText;
 }
 
 static void Task_ClosePartyMenuAfterText(u8 taskId)
@@ -4645,7 +4689,17 @@ static void TryUsePPItemOutsideBattle(u8 taskId)
         gPartyMenuUseExitCallback = FALSE;
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+        if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
+        {
+            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+            if (gSpecialVar_ItemId == ITEM_PP_UP || gSpecialVar_ItemId == ITEM_PP_MAX)
+                gItemUseCB = ItemUseCB_PPUp;
+            else
+                gItemUseCB = ItemUseCB_TryRestorePP;
+            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+        }
+        else
+            gTasks[taskId].func = Task_ClosePartyMenuAfterText;
     }
     else
     {
@@ -4669,7 +4723,17 @@ static void ItemUseCB_RestorePP(u8 taskId, TaskFunc func)
     GetMedicineItemEffectMessage(gSpecialVar_ItemId);
     DisplayPartyMenuMessage(gStringVar4, 1);
     ScheduleBgCopyTilemapToVram(2);
-    gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+    if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
+    {
+        gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+        if (gSpecialVar_ItemId == ITEM_PP_UP || gSpecialVar_ItemId == ITEM_PP_MAX)
+            gItemUseCB = ItemUseCB_PPUp;
+        else
+            gItemUseCB = ItemUseCB_TryRestorePP;
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+    }
+    else
+        gTasks[taskId].func = Task_ClosePartyMenuAfterText;
 }
 
 static void TryUsePPItemInBattle(u8 taskId)
@@ -4897,6 +4961,8 @@ static void CB2_ReturnToPartyMenuWhileLearningMove(void)
         gItemUseCB = ItemUseCB_ReplaceMoveWithTMHM;
         gPartyMenu.action = PARTY_ACTION_CHOOSE_MON;
     }
+    else if (gSpecialVar_ItemId == ITEM_RARE_CANDY && gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
+        InitPartyMenu(PARTY_MENU_TYPE_FIELD, PARTY_LAYOUT_SINGLE, PARTY_ACTION_USE_ITEM, TRUE, PARTY_MSG_NONE, Task_ReturnToPartyMenuWhileLearningMove, gPartyMenu.exitCallback);
     else
         InitPartyMenu(PARTY_MENU_TYPE_FIELD, PARTY_LAYOUT_SINGLE, PARTY_ACTION_CHOOSE_MON, TRUE, PARTY_MSG_NONE, Task_ReturnToPartyMenuWhileLearningMove, gPartyMenu.exitCallback);
 }
@@ -5031,7 +5097,14 @@ void ItemUseCB_RareCandy(u8 taskId, TaskFunc func)
         gPartyMenuUseExitCallback = FALSE;
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        gTasks[taskId].func = func;
+        if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
+        {
+            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+            gItemUseCB = ItemUseCB_RareCandy;
+            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+        }
+        else
+            gTasks[taskId].func = func;
     }
     else
     {
@@ -5163,6 +5236,12 @@ static void Task_TryLearningNextMove(u8 taskId)
     }
 }
 
+static void CB2_ReturnToPartyMenuUsingRareCandy(void)
+{
+    gItemUseCB = ItemUseCB_RareCandy;
+    SetMainCallback2(CB2_ShowPartyMenuForItemUse);
+}
+
 static void PartyMenuTryEvolution(u8 taskId)
 {
     struct Pokemon *mon = &gPlayerParty[gPartyMenu.slotId];
@@ -5171,12 +5250,24 @@ static void PartyMenuTryEvolution(u8 taskId)
     if (targetSpecies != SPECIES_NONE)
     {
         FreePartyPointers();
-        gCB2_AfterEvolution = gPartyMenu.exitCallback;
+        if (gSpecialVar_ItemId == ITEM_RARE_CANDY && gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
+            gCB2_AfterEvolution = CB2_ReturnToPartyMenuUsingRareCandy;
+        else
+            gCB2_AfterEvolution = gPartyMenu.exitCallback;
         BeginEvolutionScene(mon, targetSpecies, TRUE, gPartyMenu.slotId);
         DestroyTask(taskId);
     }
     else
-        gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+    {
+        if (gSpecialVar_ItemId == ITEM_RARE_CANDY && gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
+        {
+            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+            gItemUseCB = ItemUseCB_RareCandy;
+            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+        }
+        else
+            gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+    }
 }
 
 static void DisplayMonNeedsToReplaceMove(u8 taskId)
