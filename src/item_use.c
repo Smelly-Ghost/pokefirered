@@ -606,11 +606,11 @@ void UseReusableRepel(void)
 {
     u16 item = gSpecialVar_0x8004;
 
+    gSpecialVar_ItemId = item;
+    ItemUse_SetQuestLogEvent(QL_EVENT_USED_ITEM, NULL, item, 0xFFFF);
     VarSet(VAR_REPEL_STEP_COUNT, ItemId_GetHoldEffectParam(item));
     VarSet(VAR_LAST_REPEL_USED, item);
-    RemoveBagItem(item, 1);
-    CopyItemName(item, gStringVar2);
-    StringExpandPlaceholders(gStringVar4, gText_PlayerUsedVar2);
+    RemoveUsedItem();
 }
 
 void FieldUseFunc_BlackWhiteFlute(u8 taskId)
