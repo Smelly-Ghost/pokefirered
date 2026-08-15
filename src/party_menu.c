@@ -5295,7 +5295,10 @@ void ItemUseCB_EvolutionStone(u8 taskId, TaskFunc func)
     bool8 noEffect;
 
     PlaySE(SE_SELECT);
-    noEffect = PokemonItemUseNoEffect(&gPlayerParty[gPartyMenu.slotId], gSpecialVar_ItemId, gPartyMenu.slotId, 0);
+    if (IS_POKEMON_ITEM(gSpecialVar_ItemId))
+        noEffect = PokemonItemUseNoEffect(&gPlayerParty[gPartyMenu.slotId], gSpecialVar_ItemId, gPartyMenu.slotId, 0);
+    else // held-item evolution triggers (King's Rock etc.) have no gItemEffectTable entry, so check the evolution table directly
+        noEffect = (GetEvolutionTargetSpecies(&gPlayerParty[gPartyMenu.slotId], EVO_MODE_ITEM_USE, gSpecialVar_ItemId) == SPECIES_NONE);
     if (noEffect)
     {
         gPartyMenuUseExitCallback = FALSE;
@@ -5310,7 +5313,15 @@ void ItemUseCB_EvolutionStone(u8 taskId, TaskFunc func)
 static void CB2_UseEvolutionStone(void)
 {
     gCB2_AfterEvolution = gPartyMenu.exitCallback;
-    ExecuteTableBasedItemEffect_(gPartyMenu.slotId, gSpecialVar_ItemId, 0);
+    if (ExecuteTableBasedItemEffect_(gPartyMenu.slotId, gSpecialVar_ItemId, 0) && !IS_POKEMON_ITEM(gSpecialVar_ItemId))
+    {
+        // held-item evolution triggers (King's Rock etc.) have no gItemEffectTable entry to drive BeginEvolutionScene,
+        // so trigger it directly here instead of leaving gMain.callback2 stuck on this function forever
+        struct Pokemon *mon = &gPlayerParty[gPartyMenu.slotId];
+        u16 targetSpecies = GetEvolutionTargetSpecies(mon, EVO_MODE_ITEM_USE, gSpecialVar_ItemId);
+        if (targetSpecies != SPECIES_NONE)
+            BeginEvolutionScene(mon, targetSpecies, FALSE, gPartyMenu.slotId);
+    }
     ItemUse_SetQuestLogEvent(QL_EVENT_USED_ITEM, &gPlayerParty[gPartyMenu.slotId], gSpecialVar_ItemId, 0xFFFF);
     RemoveBagItem(gSpecialVar_ItemId, 1);
 }
