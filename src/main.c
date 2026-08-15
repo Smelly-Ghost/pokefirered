@@ -358,15 +358,11 @@ static void ReadKeys(void)
         {
             if (gMain.vblankCounter2 % 8 == 0)
                 gMain.newKeys |= A_BUTTON;
-            else
-                gMain.newKeys &= ~A_BUTTON;
         }
         else if (JOY_HELD(turboButton) && gMain.inBattle && !IsPlayerAwaitingBattleChoice())
         {
             if (gMain.vblankCounter2 % 16 == 0)
                 gMain.newKeys |= A_BUTTON;
-            else
-                gMain.newKeys &= ~A_BUTTON;
         }
     }
 
