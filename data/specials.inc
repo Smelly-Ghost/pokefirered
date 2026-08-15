@@ -11,6 +11,8 @@ gSpecials::
 	def_special HealPlayerParty
 	def_special SetCableClubWarp
 	def_special DoCableClubWarp
+	def_special GetReusableRepelItem
+	def_special UseReusableRepel
 	def_special ReturnFromLinkRoom
 	def_special CleanupLinkRoomState
 	def_special ExitLinkRoom

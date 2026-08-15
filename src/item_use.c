@@ -565,6 +565,7 @@ static void Task_UseRepel(u8 taskId)
     {
         ItemUse_SetQuestLogEvent(QL_EVENT_USED_ITEM, NULL, gSpecialVar_ItemId, 0xFFFF);
         VarSet(VAR_REPEL_STEP_COUNT, ItemId_GetHoldEffectParam(gSpecialVar_ItemId));
+        VarSet(VAR_LAST_REPEL_USED, gSpecialVar_ItemId);
         RemoveUsedItem();
         DisplayItemMessageInBag(taskId, FONT_NORMAL, gStringVar4, Task_ReturnToBagFromContextMenu);
     }
@@ -576,6 +577,39 @@ static void RemoveUsedItem(void)
     Pocket_CalculateNItemsAndMaxShowed(ItemId_GetPocket(gSpecialVar_ItemId));
     PocketCalculateInitialCursorPosAndItemsAbove(ItemId_GetPocket(gSpecialVar_ItemId));
     CopyItemName(gSpecialVar_ItemId, gStringVar2);
+    StringExpandPlaceholders(gStringVar4, gText_PlayerUsedVar2);
+}
+
+// Prefers re-buying the same repel that just wore off if there's still one in the bag,
+// otherwise falls back to the strongest repel available. Leaves gSpecialVar_0x8004 as
+// ITEM_NONE if the bag has no repel at all.
+void GetReusableRepelItem(void)
+{
+    u16 lastRepel = VarGet(VAR_LAST_REPEL_USED);
+    u16 item = ITEM_NONE;
+
+    if (lastRepel != ITEM_NONE && CheckBagHasItem(lastRepel, 1))
+        item = lastRepel;
+    else if (CheckBagHasItem(ITEM_MAX_REPEL, 1))
+        item = ITEM_MAX_REPEL;
+    else if (CheckBagHasItem(ITEM_SUPER_REPEL, 1))
+        item = ITEM_SUPER_REPEL;
+    else if (CheckBagHasItem(ITEM_REPEL, 1))
+        item = ITEM_REPEL;
+
+    gSpecialVar_0x8004 = item;
+    if (item != ITEM_NONE)
+        CopyItemName(item, gStringVar1);
+}
+
+void UseReusableRepel(void)
+{
+    u16 item = gSpecialVar_0x8004;
+
+    VarSet(VAR_REPEL_STEP_COUNT, ItemId_GetHoldEffectParam(item));
+    VarSet(VAR_LAST_REPEL_USED, item);
+    RemoveBagItem(item, 1);
+    CopyItemName(item, gStringVar2);
     StringExpandPlaceholders(gStringVar4, gText_PlayerUsedVar2);
 }
 
