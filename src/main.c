@@ -19,6 +19,7 @@
 #include "script_menu.h"
 #include "menu_helpers.h"
 #include "shop.h"
+#include "pokemon_storage_system.h"
 #include "start_menu.h"
 #include "script.h"
 
@@ -342,6 +343,12 @@ static void ReadKeys(void)
     // suppressed during menus/prompts where an accidental confirm would be dangerous.
     if (gSaveBlock2Ptr->optionsTurboA)
     {
+        // Frames to keep suppressing Turbo A after one of the menus/prompts below
+        // closes, so a synthetic press can't instantly re-trigger whatever NPC/
+        // object/menu the player is still facing (e.g. auto-confirming "SEE YA!"
+        // at the PC and immediately reopening it because the button never released).
+        #define TURBO_A_REARM_DELAY 30
+        static u8 sTurboARearmDelay;
         u16 turboButton = A_BUTTON;
 
         if (gSaveBlock2Ptr->optionsTurboButton == OPTIONS_TURBO_BUTTON_L)
@@ -349,21 +356,32 @@ static void ReadKeys(void)
         else if (gSaveBlock2Ptr->optionsTurboButton == OPTIONS_TURBO_BUTTON_R)
             turboButton = R_BUTTON;
 
-        if (JOY_HELD(turboButton) && gMain.callback2 == CB2_Overworld
-         && !ScriptContext_IsWaiting()
-         && !FuncIsActiveTask(Task_StartMenuHandleInput)
-         && !IsScriptMenuWaitingForChoice()
-         && !IsYesNoMenuActive()
-         && !IsShopMenuActive())
+        if (gMain.callback2 == CB2_Overworld)
         {
-            if (gMain.vblankCounter2 % 8 == 0)
+            if (ScriptContext_IsWaiting()
+             || FuncIsActiveTask(Task_StartMenuHandleInput)
+             || IsScriptMenuWaitingForChoice()
+             || IsYesNoMenuActive()
+             || IsShopMenuActive()
+             || IsPCMainMenuActive())
+            {
+                sTurboARearmDelay = TURBO_A_REARM_DELAY;
+            }
+            else if (sTurboARearmDelay != 0)
+            {
+                sTurboARearmDelay--;
+            }
+            else if (JOY_HELD(turboButton) && gMain.vblankCounter2 % 8 == 0)
+            {
                 gMain.newKeys |= A_BUTTON;
+            }
         }
         else if (JOY_HELD(turboButton) && gMain.inBattle && !IsPlayerAwaitingBattleChoice())
         {
             if (gMain.vblankCounter2 % 16 == 0)
                 gMain.newKeys |= A_BUTTON;
         }
+        #undef TURBO_A_REARM_DELAY
     }
 
     if (JOY_NEW(gMain.watchedKeysMask))

@@ -351,6 +351,11 @@ static void Task_PCMainMenu(u8 taskId)
     }
 }
 
+bool8 IsPCMainMenuActive(void)
+{
+    return FuncIsActiveTask(Task_PCMainMenu);
+}
+
 void ShowPokemonStorageSystemPC(void)
 {
     u8 taskId = CreateTask(Task_PCMainMenu, 80);
