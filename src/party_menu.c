@@ -400,6 +400,7 @@ static void ItemUseCB_ReplaceMoveWithTMHM(u8 taskId, TaskFunc func);
 static void Task_ReplaceMoveWithTMHM(u8 taskId);
 static void CB2_UseEvolutionStone(void);
 static bool8 MonCanEvolve(void);
+static void ReturnToPartyMenuOrCloseAfterItemUse(u8 taskId, void (*itemUseCB)(u8, TaskFunc), TaskFunc fallbackFunc);
 
 static EWRAM_DATA struct PartyMenuInternal *sPartyMenuInternal = NULL;
 EWRAM_DATA struct PartyMenu gPartyMenu = {0};
@@ -4474,7 +4475,7 @@ void ItemUseCB_Medicine(u8 taskId, TaskFunc func)
         gPartyMenuUseExitCallback = FALSE;
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        gTasks[taskId].func = func;
+        ReturnToPartyMenuOrCloseAfterItemUse(taskId, ItemUseCB_Medicine, func);
     }
     else
     {
@@ -4482,6 +4483,21 @@ void ItemUseCB_Medicine(u8 taskId, TaskFunc func)
         Task_DoUseItemAnim(taskId);
         gItemUseCB = ItemUseCB_MedicineStep;
     }
+}
+
+// Loops back into item-use instead of closing the party menu, if it was opened from the field.
+// Callers with an extra guard (e.g. CheckBagHasItem) on whether to loop back should check it
+// themselves before calling this, since that varies by item/call site.
+static void ReturnToPartyMenuOrCloseAfterItemUse(u8 taskId, void (*itemUseCB)(u8, TaskFunc), TaskFunc fallbackFunc)
+{
+    if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
+    {
+        gPartyMenu.action = PARTY_ACTION_USE_ITEM;
+        gItemUseCB = itemUseCB;
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
+    }
+    else
+        gTasks[taskId].func = fallbackFunc;
 }
 
 void ItemUseCB_MedicineStep(u8 taskId, TaskFunc func)
@@ -4513,14 +4529,7 @@ void ItemUseCB_MedicineStep(u8 taskId, TaskFunc func)
         PlaySE(SE_SELECT);
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
-        {
-            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
-            gItemUseCB = ItemUseCB_Medicine;
-            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
-        }
-        else
-            gTasks[taskId].func = func;
+        ReturnToPartyMenuOrCloseAfterItemUse(taskId, ItemUseCB_Medicine, func);
     }
     else
     {
@@ -4550,12 +4559,8 @@ void ItemUseCB_MedicineStep(u8 taskId, TaskFunc func)
             GetMedicineItemEffectMessage(item);
             DisplayPartyMenuMessage(gStringVar4, TRUE);
             ScheduleBgCopyTilemapToVram(2);
-            if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(item, 1))
-            {
-                gPartyMenu.action = PARTY_ACTION_USE_ITEM;
-                gItemUseCB = ItemUseCB_Medicine;
-                gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
-            }
+            if (CheckBagHasItem(item, 1))
+                ReturnToPartyMenuOrCloseAfterItemUse(taskId, ItemUseCB_Medicine, func);
             else
                 gTasks[taskId].func = func;
         }
@@ -4689,17 +4694,9 @@ static void TryUsePPItemOutsideBattle(u8 taskId)
         gPartyMenuUseExitCallback = FALSE;
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
-        {
-            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
-            if (gSpecialVar_ItemId == ITEM_PP_UP || gSpecialVar_ItemId == ITEM_PP_MAX)
-                gItemUseCB = ItemUseCB_PPUp;
-            else
-                gItemUseCB = ItemUseCB_TryRestorePP;
-            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
-        }
-        else
-            gTasks[taskId].func = Task_ClosePartyMenuAfterText;
+        ReturnToPartyMenuOrCloseAfterItemUse(taskId,
+            (gSpecialVar_ItemId == ITEM_PP_UP || gSpecialVar_ItemId == ITEM_PP_MAX) ? ItemUseCB_PPUp : ItemUseCB_TryRestorePP,
+            Task_ClosePartyMenuAfterText);
     }
     else
     {
@@ -4723,15 +4720,10 @@ static void ItemUseCB_RestorePP(u8 taskId, TaskFunc func)
     GetMedicineItemEffectMessage(gSpecialVar_ItemId);
     DisplayPartyMenuMessage(gStringVar4, 1);
     ScheduleBgCopyTilemapToVram(2);
-    if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
-    {
-        gPartyMenu.action = PARTY_ACTION_USE_ITEM;
-        if (gSpecialVar_ItemId == ITEM_PP_UP || gSpecialVar_ItemId == ITEM_PP_MAX)
-            gItemUseCB = ItemUseCB_PPUp;
-        else
-            gItemUseCB = ItemUseCB_TryRestorePP;
-        gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
-    }
+    if (CheckBagHasItem(gSpecialVar_ItemId, 1))
+        ReturnToPartyMenuOrCloseAfterItemUse(taskId,
+            (gSpecialVar_ItemId == ITEM_PP_UP || gSpecialVar_ItemId == ITEM_PP_MAX) ? ItemUseCB_PPUp : ItemUseCB_TryRestorePP,
+            Task_ClosePartyMenuAfterText);
     else
         gTasks[taskId].func = Task_ClosePartyMenuAfterText;
 }
@@ -5097,14 +5089,7 @@ void ItemUseCB_RareCandy(u8 taskId, TaskFunc func)
         gPartyMenuUseExitCallback = FALSE;
         DisplayPartyMenuMessage(gText_WontHaveEffect, TRUE);
         ScheduleBgCopyTilemapToVram(2);
-        if (gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD)
-        {
-            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
-            gItemUseCB = ItemUseCB_RareCandy;
-            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
-        }
-        else
-            gTasks[taskId].func = func;
+        ReturnToPartyMenuOrCloseAfterItemUse(taskId, ItemUseCB_RareCandy, func);
     }
     else
     {
@@ -5259,12 +5244,8 @@ static void PartyMenuTryEvolution(u8 taskId)
     }
     else
     {
-        if (gSpecialVar_ItemId == ITEM_RARE_CANDY && gPartyMenu.menuType == PARTY_MENU_TYPE_FIELD && CheckBagHasItem(gSpecialVar_ItemId, 1))
-        {
-            gPartyMenu.action = PARTY_ACTION_USE_ITEM;
-            gItemUseCB = ItemUseCB_RareCandy;
-            gTasks[taskId].func = Task_ReturnToChooseMonAfterUsingItem;
-        }
+        if (gSpecialVar_ItemId == ITEM_RARE_CANDY && CheckBagHasItem(gSpecialVar_ItemId, 1))
+            ReturnToPartyMenuOrCloseAfterItemUse(taskId, ItemUseCB_RareCandy, Task_ClosePartyMenuAfterText);
         else
             gTasks[taskId].func = Task_ClosePartyMenuAfterText;
     }
