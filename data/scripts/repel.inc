@@ -5,6 +5,7 @@ EventScript_RepelWoreOff::
 	msgbox Text_UseAnotherRepel, MSGBOX_YESNO
 	goto_if_eq VAR_RESULT, NO, EventScript_RepelWoreOff_End
 	special UseReusableRepel
+	waitse
 	msgbox gStringVar4, MSGBOX_SIGN
 EventScript_RepelWoreOff_End::
 	closemessage

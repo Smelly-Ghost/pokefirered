@@ -606,6 +606,7 @@ void UseReusableRepel(void)
 {
     u16 item = gSpecialVar_0x8004;
 
+    PlaySE(SE_REPEL);
     gSpecialVar_ItemId = item;
     ItemUse_SetQuestLogEvent(QL_EVENT_USED_ITEM, NULL, item, 0xFFFF);
     VarSet(VAR_REPEL_STEP_COUNT, ItemId_GetHoldEffectParam(item));
