@@ -448,10 +448,33 @@ static void (*const sPlayerNotOnBikeFuncs[])(u8, u16) = {
     PlayerNotOnBikeMoving
 };
 
+// How long B can be held and still count as a "tap" that toggles autorun,
+// rather than a hold-and-release that just dashes temporarily. Measured
+// against gMain.vblankCounter2 (real elapsed VBlanks) rather than counting
+// calls to this function, since MovePlayerNotOnBike isn't guaranteed to run
+// on every single hardware frame (e.g. it's skipped mid movement-animation
+// in some states), which would undercount a genuine long hold as a tap.
+#define B_DASH_TAP_MAX_FRAMES 20
+
 void MovePlayerNotOnBike(u8 direction, u16 heldKeys)
 {
-    if (JOY_NEW(B_BUTTON) && FlagGet(FLAG_SYS_B_DASH))
-        gSaveBlock2Ptr->autoRunOn = !gSaveBlock2Ptr->autoRunOn;
+    static u32 sBDashPressVblank;
+    static bool8 sBDashPressActive;
+
+    if (FlagGet(FLAG_SYS_B_DASH))
+    {
+        if (JOY_NEW(B_BUTTON))
+        {
+            sBDashPressVblank = gMain.vblankCounter2;
+            sBDashPressActive = TRUE;
+        }
+        else if (sBDashPressActive && !(heldKeys & B_BUTTON))
+        {
+            if (gMain.vblankCounter2 - sBDashPressVblank <= B_DASH_TAP_MAX_FRAMES)
+                gSaveBlock2Ptr->autoRunOn = !gSaveBlock2Ptr->autoRunOn;
+            sBDashPressActive = FALSE;
+        }
+    }
     sPlayerNotOnBikeFuncs[CheckMovementInputNotOnBike(direction)](direction, heldKeys);
 }
 
