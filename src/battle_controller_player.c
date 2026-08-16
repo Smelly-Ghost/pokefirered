@@ -1,12 +1,14 @@
 #include "global.h"
 #include "gflib.h"
 #include "data.h"
+#include "event_data.h"
 #include "item.h"
 #include "item_menu.h"
 #include "link.h"
 #include "m4a.h"
 #include "party_menu.h"
 #include "pokeball.h"
+#include "pokemon.h"
 #include "strings.h"
 #include "pokemon_special_anim.h"
 #include "task.h"
@@ -173,6 +175,10 @@ static const u8 sTargetIdentities[] = { B_POSITION_PLAYER_LEFT, B_POSITION_PLAYE
 // unknown unused data
 static const u8 sUnused[] = { 0x48, 0x48, 0x20, 0x5a, 0x50, 0x50, 0x50, 0x58 };
 
+// Set by HandleInputChooseAction when R_BUTTON re-throws the last ball, so
+// PlayerHandleChooseItem can skip the bag menu and go straight to CompleteWhenChoseItem.
+static bool8 sRethrowingBall;
+
 void BattleControllerDummy(void)
 {
 }
@@ -306,6 +312,24 @@ static void HandleInputChooseAction(void)
     else if (JOY_NEW(START_BUTTON))
     {
         SwapHpBarsWithHpText();
+    }
+    else if (JOY_NEW(R_BUTTON)
+          && !(gBattleTypeFlags & BATTLE_TYPE_TRAINER)
+          && !(gSaveBlock2Ptr->optionsTurboA && gSaveBlock2Ptr->optionsTurboButton == OPTIONS_TURBO_BUTTON_R))
+    {
+        u16 lastBall = VarGet(VAR_LAST_THROWN_BALL);
+
+        if (lastBall != ITEM_NONE && CheckBagHasItem(lastBall, 1) && !IsPlayerPartyAndPokemonStorageFull())
+        {
+            // Mirrors the bag-menu ball-use path (BattleUseFunc_PokeBallEtc), which
+            // removes the ball from the bag the moment it's selected for use.
+            RemoveBagItem(lastBall, 1);
+            PlaySE(SE_SELECT);
+            gSpecialVar_ItemId = lastBall;
+            sRethrowingBall = TRUE;
+            BtlController_EmitTwoReturnValues(1, B_ACTION_USE_ITEM, 0);
+            PlayerBufferExecCompleted();
+        }
     }
 }
 
@@ -1337,6 +1361,9 @@ static void CompleteWhenChoseItem(void)
 {
     if (gMain.callback2 == BattleMainCB2 && !gPaletteFade.active)
     {
+        if (!(gBattleTypeFlags & BATTLE_TYPE_TRAINER)
+         && gSpecialVar_ItemId >= ITEM_MASTER_BALL && gSpecialVar_ItemId <= ITEM_PREMIER_BALL)
+            VarSet(VAR_LAST_THROWN_BALL, gSpecialVar_ItemId);
         BtlController_EmitOneReturnValue(1, gSpecialVar_ItemId);
         PlayerBufferExecCompleted();
     }
@@ -2471,11 +2498,19 @@ static void PlayerHandleChooseItem(void)
 {
     s32 i;
 
+    for (i = 0; i < 3; ++i)
+        gBattlePartyCurrentOrder[i] = gBattleBufferA[gActiveBattler][1 + i];
+
+    if (sRethrowingBall)
+    {
+        sRethrowingBall = FALSE;
+        gBattlerControllerFuncs[gActiveBattler] = CompleteWhenChoseItem;
+        return;
+    }
+
     BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 0x10, RGB_BLACK);
     gBattlerControllerFuncs[gActiveBattler] = OpenBagAndChooseItem;
     gBattlerInMenuId = gActiveBattler;
-    for (i = 0; i < 3; ++i)
-        gBattlePartyCurrentOrder[i] = gBattleBufferA[gActiveBattler][1 + i];
 }
 
 static void PlayerHandleChoosePokemon(void)
