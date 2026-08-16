@@ -436,6 +436,8 @@ static void Cmd_delay(void)
     sAnimFramesToWait = sBattleAnimScriptPtr[0];
     if (sAnimFramesToWait == 0)
         sAnimFramesToWait = -1;
+    else if (gSaveBlock2Ptr->optionsBattleSpeed == OPTIONS_BATTLE_SPEED_FAST)
+        sAnimFramesToWait = (sAnimFramesToWait + 1) / 2;
     sBattleAnimScriptPtr++;
     gAnimScriptCallback = WaitAnimFrameCount;
 }

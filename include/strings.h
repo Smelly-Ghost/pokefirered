@@ -945,6 +945,9 @@ extern const u8 gText_TurboButtonA[];
 extern const u8 gText_TurboButtonL[];
 extern const u8 gText_TurboButtonR[];
 extern const u8 gText_QuestLog[];
+extern const u8 gText_BattleSpeed[];
+extern const u8 gText_BattleSpeedNormal[];
+extern const u8 gText_BattleSpeedFast[];
 
 // evolution_scene
 extern const u8 gText_PkmnIsEvolving[];

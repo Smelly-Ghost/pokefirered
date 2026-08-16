@@ -30,6 +30,7 @@ enum
     MENUITEM_TURBOA,
     MENUITEM_TURBOBUTTON,
     MENUITEM_QUESTLOG,
+    MENUITEM_BATTLESPEED,
     MENUITEM_CANCEL,
     MENUITEM_COUNT
 };
@@ -144,7 +145,7 @@ static const struct BgTemplate sOptionMenuBgTemplates[] =
 };
 
 static const u16 sOptionMenuPalette[] = INCBIN_U16("graphics/misc/option_menu.gbapal");
-static const u16 sOptionMenuItemCounts[MENUITEM_COUNT] = {3, 2, 2, 2, 3, 10, 2, 3, 2, 0};
+static const u16 sOptionMenuItemCounts[MENUITEM_COUNT] = {3, 2, 2, 2, 3, 10, 2, 3, 2, 2, 0};
 
 static const u8 *const sOptionMenuItemsNames[MENUITEM_COUNT] =
 {
@@ -157,6 +158,7 @@ static const u8 *const sOptionMenuItemsNames[MENUITEM_COUNT] =
     [MENUITEM_TURBOA]       = gText_TurboA,
     [MENUITEM_TURBOBUTTON]  = gText_TurboButton,
     [MENUITEM_QUESTLOG]     = gText_QuestLog,
+    [MENUITEM_BATTLESPEED]  = gText_BattleSpeed,
     [MENUITEM_CANCEL]       = gText_OptionMenuCancel,
 };
 
@@ -211,6 +213,12 @@ static const u8 *const sQuestLogOptions[] =
     gText_BattleSceneOff
 };
 
+static const u8 *const sBattleSpeedOptions[] =
+{
+    gText_BattleSpeedNormal,
+    gText_BattleSpeedFast
+};
+
 static const u8 sOptionMenuPickSwitchCancelTextColor[] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_COLOR_DARK_GRAY};
 static const u8 sOptionMenuTextColor[] = {TEXT_COLOR_TRANSPARENT, TEXT_COLOR_LIGHT_RED, TEXT_COLOR_RED};
 
@@ -252,6 +260,7 @@ void CB2_OptionsMenuFromStartMenu(void)
     sOptionMenuPtr->option[MENUITEM_TURBOA] = gSaveBlock2Ptr->optionsTurboA;
     sOptionMenuPtr->option[MENUITEM_TURBOBUTTON] = gSaveBlock2Ptr->optionsTurboButton;
     sOptionMenuPtr->option[MENUITEM_QUESTLOG] = gSaveBlock2Ptr->optionsQuestLogPlayback;
+    sOptionMenuPtr->option[MENUITEM_BATTLESPEED] = gSaveBlock2Ptr->optionsBattleSpeed;
 
     for (i = 0; i < MENUITEM_COUNT - 1; i++)
     {
@@ -571,6 +580,9 @@ static void BufferOptionMenuString(u8 selection)
     case MENUITEM_QUESTLOG:
         AddTextPrinterParameterized3(1, FONT_NORMAL, x, y, dst, -1, sQuestLogOptions[sOptionMenuPtr->option[selection]]);
         break;
+    case MENUITEM_BATTLESPEED:
+        AddTextPrinterParameterized3(1, FONT_NORMAL, x, y, dst, -1, sBattleSpeedOptions[sOptionMenuPtr->option[selection]]);
+        break;
     default:
         break;
     }
@@ -606,6 +618,7 @@ static void CloseAndSaveOptionMenu(u8 taskId)
     gSaveBlock2Ptr->optionsTurboA = sOptionMenuPtr->option[MENUITEM_TURBOA];
     gSaveBlock2Ptr->optionsTurboButton = sOptionMenuPtr->option[MENUITEM_TURBOBUTTON];
     gSaveBlock2Ptr->optionsQuestLogPlayback = sOptionMenuPtr->option[MENUITEM_QUESTLOG];
+    gSaveBlock2Ptr->optionsBattleSpeed = sOptionMenuPtr->option[MENUITEM_BATTLESPEED];
     SetPokemonCryStereo(gSaveBlock2Ptr->optionsSound);
     FREE_AND_SET_NULL(sOptionMenuPtr);
     DestroyTask(taskId);

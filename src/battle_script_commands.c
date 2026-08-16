@@ -2038,6 +2038,13 @@ static void Cmd_printselectionstring(void)
     gBattleCommunication[MSG_DISPLAY] = 1;
 }
 
+static u16 GetSpeedScaledWaitTime(u16 toWait)
+{
+    if (gSaveBlock2Ptr->optionsBattleSpeed == OPTIONS_BATTLE_SPEED_FAST)
+        return (toWait + 1) / 2;
+    return toWait;
+}
+
 static void Cmd_waitmessage(void)
 {
     if (gBattleControllerExecFlags == 0)
@@ -2048,7 +2055,7 @@ static void Cmd_waitmessage(void)
         }
         else
         {
-            u16 toWait = T2_READ_16(gBattlescriptCurrInstr + 1);
+            u16 toWait = GetSpeedScaledWaitTime(T2_READ_16(gBattlescriptCurrInstr + 1));
             if (++gPauseCounterBattle >= toWait)
             {
                 gPauseCounterBattle = 0;
@@ -3763,7 +3770,7 @@ static void Cmd_pause(void)
 {
     if (gBattleControllerExecFlags == 0)
     {
-        u16 value = T2_READ_16(gBattlescriptCurrInstr + 1);
+        u16 value = GetSpeedScaledWaitTime(T2_READ_16(gBattlescriptCurrInstr + 1));
         if (++gPauseCounterBattle >= value)
         {
             gPauseCounterBattle = 0;

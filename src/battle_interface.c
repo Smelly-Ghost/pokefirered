@@ -1957,6 +1957,9 @@ static s32 CalcNewBarValue(s32 maxValue, s32 oldValue, s32 receivedValue, s32 *c
     s32 ret, newValue;
     totalPixels *= 8;
 
+    if (gSaveBlock2Ptr->optionsBattleSpeed == OPTIONS_BATTLE_SPEED_FAST)
+        increment *= 2;
+
     if (*currValue == -32768) // first function call
     {
         if (maxValue < totalPixels)
@@ -1985,6 +1988,9 @@ static s32 CalcNewBarValue(s32 maxValue, s32 oldValue, s32 receivedValue, s32 *c
     if (maxValue < totalPixels) // handle cases of max var having less pixels than the whole bar
     {
         s32 incrementInQ = Q_24_8(maxValue) / totalPixels;
+
+        if (gSaveBlock2Ptr->optionsBattleSpeed == OPTIONS_BATTLE_SPEED_FAST)
+            incrementInQ *= 2;
 
         if (receivedValue < 0) // fill bar right
         {
