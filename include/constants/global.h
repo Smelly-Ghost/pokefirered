@@ -110,6 +110,9 @@
 #define OPTIONS_TURBO_BUTTON_L  1
 #define OPTIONS_TURBO_BUTTON_R  2
 
+#define OPTIONS_QUESTLOG_ON   0
+#define OPTIONS_QUESTLOG_OFF  1
+
 #define DIR_NONE        0
 #define DIR_SOUTH       1
 #define DIR_NORTH       2
