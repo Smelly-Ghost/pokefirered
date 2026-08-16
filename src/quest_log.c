@@ -457,7 +457,7 @@ void TryStartQuestLogPlayback(u8 taskId)
             sNumScenes++;
     }
 
-    if (sNumScenes != 0)
+    if (sNumScenes != 0 && gSaveBlock2Ptr->optionsQuestLogPlayback == OPTIONS_QUESTLOG_ON)
     {
         gHelpSystemEnabled = FALSE;
         Task_BeginQuestLogPlayback(taskId);

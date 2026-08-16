@@ -69,6 +69,7 @@ static void SetDefaultOptions(void)
     gSaveBlock2Ptr->optionsTurboA = TRUE;
     gSaveBlock2Ptr->optionsTurboButton = OPTIONS_TURBO_BUTTON_A;
     gSaveBlock2Ptr->autoRunOn = FALSE;
+    gSaveBlock2Ptr->optionsQuestLogPlayback = OPTIONS_QUESTLOG_ON;
 }
 
 static void ClearPokedexFlags(void)

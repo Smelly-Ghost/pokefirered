@@ -344,6 +344,7 @@ struct SaveBlock2
               u16 optionsTurboA:1; // whether Turbo A is enabled
               u16 optionsTurboButton:2; // OPTIONS_TURBO_BUTTON_[A/L/R]
               u16 autoRunOn:1; // whether the player is currently toggled to auto-run
+              u16 optionsQuestLogPlayback:1; // OPTIONS_QUESTLOG_[ON/OFF]
     /*0x018*/ struct Pokedex pokedex;
     /*0x090*/ u8 filler_90[0x8];
     /*0x098*/ struct Time localTimeOffset;
